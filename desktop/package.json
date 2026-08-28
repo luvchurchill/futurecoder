@@ -1,0 +1,18 @@
+{
+  "name": "futurecoder-offline",
+  "version": "0.1.0",
+  "description": "Offline Windows desktop edition of the futurecoder Python course",
+  "main": "main.js",
+  "author": "futurecoder contributors",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "test": "node --test",
+    "pack:win": "electron-builder --config electron-builder.config.cjs --win nsis-web --x64 --publish never",
+    "release:win": "electron-builder --config electron-builder.config.cjs --win nsis-web --x64 --publish always"
+  },
+  "devDependencies": {
+    "electron": "44.0.0",
+    "electron-builder": "26.15.3"
+  }
+}

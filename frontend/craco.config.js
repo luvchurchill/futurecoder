@@ -5,7 +5,11 @@ module.exports = {
   webpack: {
     plugins: {
       add: [
-        new PyodidePlugin(),
+        new PyodidePlugin(
+          process.env.REACT_APP_OFFLINE_DESKTOP
+            ? {packageIndexUrl: ""}
+            : {}
+        ),
       ]
     },
     // Output to ./course (instead of ./build)

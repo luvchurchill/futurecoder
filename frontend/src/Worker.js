@@ -3,6 +3,7 @@
 // https://github.com/facebook/create-react-app/issues/8014
 
 import * as Comlink from 'comlink';
+import {loadPyodide} from "pyodide";
 import pythonCoreUrl from "./python_core.tar.load_by_url"
 import {
   loadPyodideAndPackage,
@@ -12,7 +13,15 @@ import {
 } from "pyodide-worker-runner";
 
 const reloader = new PyodideFatalErrorReloader(async () => {
-  const pyodide = await loadPyodideAndPackage({url: pythonCoreUrl, format: "tar"});
+  const pyodideLoader = process.env.REACT_APP_OFFLINE_DESKTOP
+    ? () => loadPyodide({
+      indexURL: new URL("/course/pyodide/", self.location.origin).href,
+    })
+    : undefined;
+  const pyodide = await loadPyodideAndPackage(
+    {url: pythonCoreUrl, format: "tar"},
+    pyodideLoader,
+  );
   pyodide.pyimport("core.init_pyodide").init(process.env.REACT_APP_LANGUAGE);
   return pyodide;
 });

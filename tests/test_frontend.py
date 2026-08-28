@@ -278,7 +278,7 @@ list
     # Hidden solution contains correct text
     code = driver.find_element(By.CSS_SELECTOR, ".gradual-solution code")
     assert (
-        code.text
+        code.get_attribute("textContent")
         == """\
 for i in range(len(things)):
     if to_find == things[i]:
@@ -454,7 +454,15 @@ def await_result(driver, part, full):
     locator = (By.CLASS_NAME, "terminal")
 
     WebDriverWait(driver, 20).until(text_to_be_present_in_element(locator, part))
-    assert driver.find_element(*locator).text == full
+    terminal = driver.find_element(*locator)
+    # Selenium's rendered ``.text`` may collapse a trailing newline between
+    # adjacent preformatted spans (notably in Chrome 151). Accept only that
+    # specific final prompt boundary while still validating the full transcript.
+    actual_values = {terminal.text, terminal.get_attribute("textContent")}
+    expected_values = {full}
+    if full.endswith("\n>>> "):
+        expected_values.add(full.removesuffix("\n>>> ") + ">>> ")
+    assert actual_values & expected_values
 
 
 def force_click(driver, element):

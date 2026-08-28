@@ -44,7 +44,10 @@ jobs:
         path: '**/test_frontend_assets/'
     - name: Deploy preview
       uses: FirebaseExtended/action-hosting-deploy@v0
-      if: steps.build.outcome == 'success' && github.ref != 'refs/heads/main'
+      if: >-
+        steps.build.outcome == 'success' &&
+        github.ref != 'refs/heads/main' &&
+        github.repository == 'alexmojaki/futurecoder'
       with:
         repoToken: '${{ secrets.GITHUB_TOKEN }}'
         firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}'

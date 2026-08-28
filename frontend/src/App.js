@@ -58,6 +58,8 @@ import terms from "./terms.json"
 import _ from "lodash";
 import {otherVisibleLanguages} from "./languages";
 
+const offlineDesktop = !!process.env.REACT_APP_OFFLINE_DESKTOP;
+
 
 const EditorButtons = (
   {
@@ -495,7 +497,7 @@ function AppMain(
   if (fullIde || isQuestionWizard) {
     showEditor = true;
     showSnoop = true;
-    showPythonTutor = true;
+    showPythonTutor = !offlineDesktop;
     showBirdseye = true;
     showQuestionButton = !(isQuestionWizard || previousRoute === "question");
   } else if (step.text.length) {
@@ -503,7 +505,7 @@ function AppMain(
     const snoopPageIndex = pages.UnderstandingProgramsWithSnoop.index;
     showSnoop = page.index > snoopPageIndex ||
       (page.index === snoopPageIndex && step.index >= 1);
-    showPythonTutor = page.index >= pages.UnderstandingProgramsWithPythonTutor.index;
+    showPythonTutor = !offlineDesktop && page.index >= pages.UnderstandingProgramsWithPythonTutor.index;
     showBirdseye = page.index >= pages.IntroducingBirdseye.index;
     showQuestionButton = page.index > pages.IntroducingBirdseye.index;
   }
@@ -694,4 +696,3 @@ export const App = connect(
     ...state.book,
   }),
 )(AppComponent);
-

@@ -146,3 +146,7 @@ homepage/static/css/**/*.css
 translations/codes.json
 .DS_Store
 translations/chunks/
+
+# Desktop packaging output
+desktop/node_modules/
+desktop/release/
