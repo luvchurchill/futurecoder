@@ -13,6 +13,10 @@ const SMOKE_RESULT_PATH = process.env.FUTURECODER_SMOKE_RESULT || process.argv
   .find(argument => argument.startsWith("--smoke-result="))
   ?.slice("--smoke-result=".length);
 
+if (SMOKE_TEST) {
+  console.error(`Desktop smoke test starting; result path: ${SMOKE_RESULT_PATH || "none"}`);
+}
+
 let courseServer;
 
 const windowOptions = {

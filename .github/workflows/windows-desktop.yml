@@ -112,10 +112,19 @@ jobs:
           Get-Content $stdout -ErrorAction SilentlyContinue
           Get-Content $stderr -ErrorAction SilentlyContinue
           if (-not (Test-Path $result)) {
+            $diagnostic = @(
+              Get-Content $stdout -ErrorAction SilentlyContinue
+              Get-Content $stderr -ErrorAction SilentlyContinue
+            ) -join ' | '
+            if ($diagnostic.Length -gt 1500) {
+              $diagnostic = $diagnostic.Substring(0, 1500)
+            }
+            Write-Output "::error title=Packaged smoke diagnostics::$diagnostic"
             throw 'Packaged desktop smoke test did not produce a result within four minutes'
           }
           $smoke = Get-Content $result -Raw | ConvertFrom-Json
           if (-not $smoke.success) {
+            Write-Output "::error title=Packaged smoke diagnostics::$($smoke.error)"
             throw "Packaged desktop smoke test failed: $($smoke.error)"
           }
 
