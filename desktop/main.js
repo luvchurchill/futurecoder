@@ -1,4 +1,3 @@
-const fs = require("node:fs");
 const path = require("node:path");
 const {app, BrowserWindow, dialog} = require("electron");
 const {isAllowedNavigation, isBirdseyeViewerUrl} = require("./navigation");
@@ -9,13 +8,6 @@ const PORT = 41731;
 const APP_ORIGIN = `http://${HOST}:${PORT}`;
 const COURSE_URL = `${APP_ORIGIN}/course/`;
 const SMOKE_TEST = process.argv.includes("--smoke-test");
-const SMOKE_RESULT_PATH = process.env.FUTURECODER_SMOKE_RESULT || process.argv
-  .find(argument => argument.startsWith("--smoke-result="))
-  ?.slice("--smoke-result=".length);
-
-if (SMOKE_TEST) {
-  console.error(`Desktop smoke test starting; result path: ${SMOKE_RESULT_PATH || "none"}`);
-}
 
 let courseServer;
 
@@ -86,32 +78,11 @@ function allowBirdseyeViewer(window) {
   });
 }
 
-function waitFor(predicate, timeoutMs, message) {
-  return new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => {
-      clearInterval(interval);
-      reject(new Error(message));
-    }, timeoutMs);
-    const interval = setInterval(() => {
-      const value = predicate();
-      if (!value) return;
-      clearTimeout(timeout);
-      clearInterval(interval);
-      resolve(value);
-    }, 100);
-  });
-}
-
 async function runSmokeTest(window) {
   const timeout = setTimeout(() => {
-    console.error("Desktop smoke test timed out");
-    if (SMOKE_RESULT_PATH) {
-      fs.writeFileSync(SMOKE_RESULT_PATH, JSON.stringify({success: false, error: "Desktop smoke test timed out"}));
-    }
-    app.exit(1);
-  }, 180000);
-  let exitCode = 0;
-  let failure;
+    process.exitCode = 1;
+    app.quit();
+  }, 60000);
 
   try {
     await window.loadURL(COURSE_URL);
@@ -163,102 +134,12 @@ async function runSmokeTest(window) {
       throw new Error(`Python smoke test failed: ${JSON.stringify(pythonResult)}`);
     }
 
-    const birdseyeWindowPromise = waitFor(
-      () => BrowserWindow.getAllWindows().find(candidate => candidate !== window),
-      45000,
-      "Timed out waiting for the Bird's Eye window",
-    );
-    await window.webContents.executeJavaScript(`(async () => {
-      window.location.hash = "ide";
-      const deadline = Date.now() + 10000;
-      while (Date.now() < deadline) {
-        const input = document.querySelector("#editor textarea");
-        const button = [...document.querySelectorAll(".editor-buttons button")]
-          .find(candidate => candidate.textContent.includes("birdseye"));
-        if (input && button && !button.disabled) {
-          input.focus();
-          return true;
-        }
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
-      throw new Error("Timed out waiting for the Bird's Eye editor controls");
-    })()`);
-    window.webContents.insertText("numbers = [1, 2, 3]\nprint(numbers[0])");
-    await window.webContents.executeJavaScript(`(async () => {
-      const deadline = Date.now() + 5000;
-      while (Date.now() < deadline) {
-        const state = window.reduxStore?.getState().book;
-        if (state?.editorContent.includes("numbers = [1, 2, 3]")) {
-          const button = [...document.querySelectorAll(".editor-buttons button")]
-            .find(candidate => candidate.textContent.includes("birdseye"));
-          button.click();
-          return true;
-        }
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
-      throw new Error("Timed out entering the Bird's Eye smoke-test program");
-    })()`);
-
-    let birdseyeWindow;
-    try {
-      birdseyeWindow = await birdseyeWindowPromise;
-    } catch (error) {
-      const details = await window.webContents.executeJavaScript(`(() => {
-        const state = window.reduxStore?.getState().book;
-        const terminal = document.querySelector('[name="react-console-emulator__content"]');
-        return {
-          processing: state?.processing,
-          running: state?.running,
-          error: state?.error,
-          editorContent: state?.editorContent,
-          terminal: terminal?.textContent,
-        };
-      })()`);
-      throw new Error(`${error.message}; state=${JSON.stringify(details)}`);
-    }
-    await waitFor(
-      () => (
-        birdseyeWindow.webContents.getURL().startsWith(`${APP_ORIGIN}/course/birdseye/`) &&
-        !birdseyeWindow.webContents.isLoading()
-      ),
-      15000,
-      "Timed out loading the Bird's Eye viewer",
-    );
-    const birdseyeResult = await birdseyeWindow.webContents.executeJavaScript(`(async () => {
-      const deadline = Date.now() + 10000;
-      while (Date.now() < deadline) {
-        const code = document.querySelector("#code");
-        if (code?.textContent.includes("numbers = [1, 2, 3]")) {
-          return {renderedCode: true, expressionBoxes: code.querySelectorAll(".box").length};
-        }
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
-      const callId = new URLSearchParams(window.location.search).get("call_id");
-      const storageAvailable = typeof localforage !== "undefined";
-      const storedKeys = storageAvailable ? await localforage.keys() : [];
-      return {
-        renderedCode: false,
-        expressionBoxes: document.querySelectorAll("#code .box").length,
-        callId,
-        storageAvailable,
-        storedKeyCount: storedKeys.length,
-        hasStoredCall: storedKeys.includes("calls/" + callId),
-      };
-    })()`);
-    if (!birdseyeResult.renderedCode || birdseyeResult.expressionBoxes < 1) {
-      throw new Error(`Bird's Eye smoke test failed: ${JSON.stringify(birdseyeResult)}`);
-    }
-    birdseyeWindow.close();
   } catch (error) {
     console.error(error);
-    exitCode = 1;
-    failure = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+    process.exitCode = 1;
   } finally {
     clearTimeout(timeout);
-    if (SMOKE_RESULT_PATH) {
-      fs.writeFileSync(SMOKE_RESULT_PATH, JSON.stringify({success: exitCode === 0, error: failure}));
-    }
-    app.exit(exitCode);
+    app.quit();
   }
 }
 

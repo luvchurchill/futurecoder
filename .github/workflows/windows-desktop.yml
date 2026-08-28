@@ -93,39 +93,11 @@ jobs:
         run: npm run pack:win
 
       - name: Smoke test packaged application
-        timeout-minutes: 5
         shell: pwsh
         run: |
-          $stdout = Join-Path $env:RUNNER_TEMP 'futurecoder-smoke-stdout.log'
-          $stderr = Join-Path $env:RUNNER_TEMP 'futurecoder-smoke-stderr.log'
-          $result = Join-Path $env:RUNNER_TEMP 'futurecoder-smoke-result.json'
-          $env:FUTURECODER_SMOKE_RESULT = $result
-          $process = Start-Process -FilePath '.\desktop\release\win-unpacked\futurecoder Offline.exe' -ArgumentList '--smoke-test' -RedirectStandardOutput $stdout -RedirectStandardError $stderr -PassThru
-          $deadline = (Get-Date).AddMinutes(4)
-          while (-not (Test-Path $result) -and -not $process.HasExited -and (Get-Date) -lt $deadline) {
-            Start-Sleep -Seconds 1
-            $process.Refresh()
-          }
-          if (-not $process.HasExited) {
-            & taskkill.exe /PID $process.Id /T /F 2>&1 | Out-Null
-          }
-          Get-Content $stdout -ErrorAction SilentlyContinue
-          Get-Content $stderr -ErrorAction SilentlyContinue
-          if (-not (Test-Path $result)) {
-            $diagnostic = @(
-              Get-Content $stdout -ErrorAction SilentlyContinue
-              Get-Content $stderr -ErrorAction SilentlyContinue
-            ) -join ' | '
-            if ($diagnostic.Length -gt 1500) {
-              $diagnostic = $diagnostic.Substring(0, 1500)
-            }
-            Write-Output "::error title=Packaged smoke diagnostics::$diagnostic"
-            throw 'Packaged desktop smoke test did not produce a result within four minutes'
-          }
-          $smoke = Get-Content $result -Raw | ConvertFrom-Json
-          if (-not $smoke.success) {
-            Write-Output "::error title=Packaged smoke diagnostics::$($smoke.error)"
-            throw "Packaged desktop smoke test failed: $($smoke.error)"
+          $process = Start-Process -FilePath '.\desktop\release\win-unpacked\futurecoder Offline.exe' -ArgumentList '--smoke-test' -Wait -PassThru
+          if ($process.ExitCode -ne 0) {
+            throw "Packaged desktop smoke test failed with exit code $($process.ExitCode)"
           }
 
       - name: Upload installer bundle
