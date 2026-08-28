@@ -144,24 +144,16 @@ def main():
     shutil.rmtree(birdseye_dest, ignore_errors=True)
     shutil.copytree(Path(birdseye.__file__).parent / "static", birdseye_dest, dirs_exist_ok=True)
 
-    roots = get_roots()
-    offline_desktop = os.environ.get("FUTURECODER_OFFLINE") == "1"
-    if offline_desktop:
-        # virtualenv may inject this helper depending on the host tooling. It
-        # is not a futurecoder runtime dependency and should not make desktop
-        # builds differ between Linux and Windows runners.
-        roots = [root for root in roots if root != "_virtualenv.py"]
+    # virtualenv may inject this host-specific helper depending on the Poetry
+    # and virtualenv versions. It is not a futurecoder runtime dependency and
+    # must not make generated files differ between CI environments.
+    roots = [root for root in get_roots() if root != "_virtualenv.py"]
     core_imports = "\n".join(roots)
     core_imports_path = core_dir / "core_imports.txt"
     if os.environ.get("FIX_CORE_IMPORTS"):
         core_imports_path.write_text(core_imports)
     else:
-        recorded_core_imports = core_imports_path.read_text()
-        if offline_desktop:
-            recorded_core_imports = "\n".join(
-                line for line in recorded_core_imports.splitlines()
-                if line != "_virtualenv.py"
-            )
+        recorded_core_imports = "\n".join(core_imports_path.read_text().splitlines())
     if not os.environ.get("FIX_CORE_IMPORTS") and recorded_core_imports != core_imports:
         raise ValueError(
             f"core_imports.txt is out of date, run with FIX_CORE_IMPORTS=1.\n"
