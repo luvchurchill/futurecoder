@@ -23,7 +23,7 @@ function request(port, pathname, method = "GET") {
 }
 
 test("resolves only files beneath /course/", () => {
-  const root = path.join(path.sep, "tmp", "course");
+  const root = path.resolve("test-course-root");
   assert.equal(resolveCoursePath(root, "/course/"), path.join(root, "index.html"));
   assert.equal(resolveCoursePath(root, "/course/static/app.js"), path.join(root, "static", "app.js"));
   assert.equal(resolveCoursePath(root, "/elsewhere"), null);
