@@ -96,7 +96,20 @@ jobs:
         timeout-minutes: 5
         shell: pwsh
         run: |
-          $process = Start-Process -FilePath '.\desktop\release\win-unpacked\futurecoder Offline.exe' -ArgumentList '--smoke-test' -Wait -PassThru
+          $stdout = Join-Path $env:RUNNER_TEMP 'futurecoder-smoke-stdout.log'
+          $stderr = Join-Path $env:RUNNER_TEMP 'futurecoder-smoke-stderr.log'
+          $process = Start-Process -FilePath '.\desktop\release\win-unpacked\futurecoder Offline.exe' -ArgumentList '--smoke-test' -RedirectStandardOutput $stdout -RedirectStandardError $stderr -PassThru
+          $finished = $process.WaitForExit(240000)
+          if ($finished) {
+            $process.WaitForExit()
+          } else {
+            Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+          }
+          Get-Content $stdout -ErrorAction SilentlyContinue
+          Get-Content $stderr -ErrorAction SilentlyContinue
+          if (-not $finished) {
+            throw 'Packaged desktop smoke test did not exit within four minutes'
+          }
           if ($process.ExitCode -ne 0) {
             throw "Packaged desktop smoke test failed with exit code $($process.ExitCode)"
           }
