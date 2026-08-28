@@ -93,11 +93,25 @@ jobs:
         run: npm run pack:win
 
       - name: Smoke test packaged application
+        timeout-minutes: 3
         shell: pwsh
         run: |
-          $process = Start-Process -FilePath '.\desktop\release\win-unpacked\futurecoder Offline.exe' -ArgumentList '--smoke-test' -Wait -PassThru
-          if ($process.ExitCode -ne 0) {
-            throw "Packaged desktop smoke test failed with exit code $($process.ExitCode)"
+          $result = Join-Path $env:RUNNER_TEMP 'futurecoder-smoke-result.json'
+          $env:FUTURECODER_SMOKE_RESULT = $result
+          $process = Start-Process -FilePath '.\desktop\release\win-unpacked\futurecoder Offline.exe' -ArgumentList '--smoke-test' -PassThru
+          $deadline = (Get-Date).AddSeconds(90)
+          while (-not (Test-Path $result) -and (Get-Date) -lt $deadline) {
+            Start-Sleep -Seconds 1
+          }
+          if (-not $process.HasExited) {
+            & taskkill.exe /PID $process.Id /T /F 2>&1 | Out-Null
+          }
+          if (-not (Test-Path $result)) {
+            throw 'Packaged desktop smoke test did not produce a result within 90 seconds'
+          }
+          $smoke = Get-Content $result -Raw | ConvertFrom-Json
+          if (-not $smoke.success) {
+            throw "Packaged desktop smoke test failed: $($smoke.error)"
           }
 
       - name: Upload installer bundle
