@@ -103,7 +103,7 @@ jobs:
       - name: Upload installer bundle
         uses: actions/upload-artifact@v7
         with:
-          name: futurecoder-offline-windows-${{ github.ref_name }}
+          name: futurecoder-offline-windows-${{ github.run_id }}
           if-no-files-found: error
           path: desktop/release/nsis-web/
 
@@ -117,7 +117,7 @@ jobs:
       - name: Download installer bundle
         uses: actions/download-artifact@v8
         with:
-          name: futurecoder-offline-windows-${{ github.ref_name }}
+          name: futurecoder-offline-windows-${{ github.run_id }}
           path: release
 
       - name: Publish GitHub Release

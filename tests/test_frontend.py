@@ -456,9 +456,13 @@ def await_result(driver, part, full):
     WebDriverWait(driver, 20).until(text_to_be_present_in_element(locator, part))
     terminal = driver.find_element(*locator)
     # Selenium's rendered ``.text`` may collapse a trailing newline between
-    # adjacent preformatted spans (notably in Chrome 151). Accept the exact DOM
-    # text in that case while continuing to validate the complete transcript.
-    assert full in {terminal.text, terminal.get_attribute("textContent")}
+    # adjacent preformatted spans (notably in Chrome 151). Accept only that
+    # specific final prompt boundary while still validating the full transcript.
+    actual_values = {terminal.text, terminal.get_attribute("textContent")}
+    expected_values = {full}
+    if full.endswith("\n>>> "):
+        expected_values.add(full.removesuffix("\n>>> ") + ">>> ")
+    assert actual_values & expected_values
 
 
 def force_click(driver, element):
