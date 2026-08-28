@@ -1,3 +1,4 @@
+const fs = require("node:fs");
 const path = require("node:path");
 const {app, BrowserWindow, dialog} = require("electron");
 const {isAllowedNavigation, isBirdseyeViewerUrl} = require("./navigation");
@@ -8,6 +9,9 @@ const PORT = 41731;
 const APP_ORIGIN = `http://${HOST}:${PORT}`;
 const COURSE_URL = `${APP_ORIGIN}/course/`;
 const SMOKE_TEST = process.argv.includes("--smoke-test");
+const SMOKE_RESULT_PATH = process.argv
+  .find(argument => argument.startsWith("--smoke-result="))
+  ?.slice("--smoke-result=".length);
 
 let courseServer;
 
@@ -97,9 +101,13 @@ function waitFor(predicate, timeoutMs, message) {
 async function runSmokeTest(window) {
   const timeout = setTimeout(() => {
     console.error("Desktop smoke test timed out");
+    if (SMOKE_RESULT_PATH) {
+      fs.writeFileSync(SMOKE_RESULT_PATH, JSON.stringify({success: false, error: "Desktop smoke test timed out"}));
+    }
     app.exit(1);
   }, 180000);
   let exitCode = 0;
+  let failure;
 
   try {
     await window.loadURL(COURSE_URL);
@@ -240,8 +248,12 @@ async function runSmokeTest(window) {
   } catch (error) {
     console.error(error);
     exitCode = 1;
+    failure = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
   } finally {
     clearTimeout(timeout);
+    if (SMOKE_RESULT_PATH) {
+      fs.writeFileSync(SMOKE_RESULT_PATH, JSON.stringify({success: exitCode === 0, error: failure}));
+    }
     app.exit(exitCode);
   }
 }
