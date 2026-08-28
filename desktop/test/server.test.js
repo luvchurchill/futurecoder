@@ -28,6 +28,10 @@ function request(port, pathname, method = "GET") {
 test("resolves only files beneath /course/", () => {
   const root = path.resolve("test-course-root");
   assert.equal(resolveCoursePath(root, "/course/"), path.join(root, "index.html"));
+  assert.equal(
+    resolveCoursePath(root, "/course/birdseye/?call_id=abc123"),
+    path.join(root, "birdseye", "index.html"),
+  );
   assert.equal(resolveCoursePath(root, "/course/static/app.js"), path.join(root, "static", "app.js"));
   assert.equal(resolveCoursePath(root, "/elsewhere"), null);
   assert.equal(resolveCoursePath(root, "/course/%2e%2e/secret"), null);
@@ -64,6 +68,8 @@ test("serves course files with isolation and MIME headers", async (t) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "futurecoder-server-"));
   fs.writeFileSync(path.join(root, "index.html"), "<main>offline</main>");
   fs.writeFileSync(path.join(root, "runtime.wasm"), "wasm");
+  fs.mkdirSync(path.join(root, "birdseye"));
+  fs.writeFileSync(path.join(root, "birdseye", "index.html"), "<main>birdseye</main>");
   const server = createCourseServer(root);
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
   t.after(() => {
@@ -78,6 +84,10 @@ test("serves course files with isolation and MIME headers", async (t) => {
   assert.equal(page.headers["content-type"], "text/html; charset=utf-8");
   assert.equal(page.headers["cross-origin-opener-policy"], "same-origin");
   assert.equal(page.headers["cross-origin-embedder-policy"], "require-corp");
+
+  const birdseye = await request(port, "/course/birdseye/?call_id=abc123");
+  assert.equal(birdseye.status, 200);
+  assert.equal(birdseye.body, "<main>birdseye</main>");
 
   const wasm = await request(port, "/course/runtime.wasm", "HEAD");
   assert.equal(wasm.status, 200);

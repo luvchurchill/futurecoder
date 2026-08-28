@@ -53,7 +53,10 @@ function resolveCoursePath(courseRoot, requestUrl) {
     return null;
   }
 
-  const relativePath = pathname.slice("/course/".length) || "index.html";
+  let relativePath = pathname.slice("/course/".length);
+  if (!relativePath || relativePath.endsWith("/")) {
+    relativePath += "index.html";
+  }
   const root = path.resolve(courseRoot);
   const candidate = path.resolve(root, relativePath);
   if (candidate !== root && !candidate.startsWith(`${root}${path.sep}`)) {

@@ -93,6 +93,7 @@ jobs:
         run: npm run pack:win
 
       - name: Smoke test packaged application
+        timeout-minutes: 5
         shell: pwsh
         run: |
           $process = Start-Process -FilePath '.\desktop\release\win-unpacked\futurecoder Offline.exe' -ArgumentList '--smoke-test' -Wait -PassThru

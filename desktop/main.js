@@ -96,9 +96,10 @@ function waitFor(predicate, timeoutMs, message) {
 
 async function runSmokeTest(window) {
   const timeout = setTimeout(() => {
-    process.exitCode = 1;
-    app.quit();
-  }, 60000);
+    console.error("Desktop smoke test timed out");
+    app.exit(1);
+  }, 180000);
+  let exitCode = 0;
 
   try {
     await window.loadURL(COURSE_URL);
@@ -170,7 +171,7 @@ async function runSmokeTest(window) {
       }
       throw new Error("Timed out waiting for the Bird's Eye editor controls");
     })()`);
-    window.webContents.insertText("numbers = [1, 2, 3]\\nprint(numbers[0])");
+    window.webContents.insertText("numbers = [1, 2, 3]\nprint(numbers[0])");
     await window.webContents.executeJavaScript(`(async () => {
       const deadline = Date.now() + 5000;
       while (Date.now() < deadline) {
@@ -186,9 +187,28 @@ async function runSmokeTest(window) {
       throw new Error("Timed out entering the Bird's Eye smoke-test program");
     })()`);
 
-    const birdseyeWindow = await birdseyeWindowPromise;
+    let birdseyeWindow;
+    try {
+      birdseyeWindow = await birdseyeWindowPromise;
+    } catch (error) {
+      const details = await window.webContents.executeJavaScript(`(() => {
+        const state = window.reduxStore?.getState().book;
+        const terminal = document.querySelector('[name="react-console-emulator__content"]');
+        return {
+          processing: state?.processing,
+          running: state?.running,
+          error: state?.error,
+          editorContent: state?.editorContent,
+          terminal: terminal?.textContent,
+        };
+      })()`);
+      throw new Error(`${error.message}; state=${JSON.stringify(details)}`);
+    }
     await waitFor(
-      () => !birdseyeWindow.webContents.isLoading(),
+      () => (
+        birdseyeWindow.webContents.getURL().startsWith(`${APP_ORIGIN}/course/birdseye/`) &&
+        !birdseyeWindow.webContents.isLoading()
+      ),
       15000,
       "Timed out loading the Bird's Eye viewer",
     );
@@ -201,7 +221,17 @@ async function runSmokeTest(window) {
         }
         await new Promise(resolve => setTimeout(resolve, 100));
       }
-      throw new Error("Timed out rendering the Bird's Eye trace");
+      const callId = new URLSearchParams(window.location.search).get("call_id");
+      const storageAvailable = typeof localforage !== "undefined";
+      const storedKeys = storageAvailable ? await localforage.keys() : [];
+      return {
+        renderedCode: false,
+        expressionBoxes: document.querySelectorAll("#code .box").length,
+        callId,
+        storageAvailable,
+        storedKeyCount: storedKeys.length,
+        hasStoredCall: storedKeys.includes("calls/" + callId),
+      };
     })()`);
     if (!birdseyeResult.renderedCode || birdseyeResult.expressionBoxes < 1) {
       throw new Error(`Bird's Eye smoke test failed: ${JSON.stringify(birdseyeResult)}`);
@@ -209,10 +239,10 @@ async function runSmokeTest(window) {
     birdseyeWindow.close();
   } catch (error) {
     console.error(error);
-    process.exitCode = 1;
+    exitCode = 1;
   } finally {
     clearTimeout(timeout);
-    app.quit();
+    app.exit(exitCode);
   }
 }
 
