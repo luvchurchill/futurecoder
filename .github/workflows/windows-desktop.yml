@@ -99,8 +99,8 @@ jobs:
           $stdout = Join-Path $env:RUNNER_TEMP 'futurecoder-smoke-stdout.log'
           $stderr = Join-Path $env:RUNNER_TEMP 'futurecoder-smoke-stderr.log'
           $result = Join-Path $env:RUNNER_TEMP 'futurecoder-smoke-result.json'
-          $arguments = @('--smoke-test', "--smoke-result=$result")
-          $process = Start-Process -FilePath '.\desktop\release\win-unpacked\futurecoder Offline.exe' -ArgumentList $arguments -RedirectStandardOutput $stdout -RedirectStandardError $stderr -PassThru
+          $env:FUTURECODER_SMOKE_RESULT = $result
+          $process = Start-Process -FilePath '.\desktop\release\win-unpacked\futurecoder Offline.exe' -ArgumentList '--smoke-test' -RedirectStandardOutput $stdout -RedirectStandardError $stderr -PassThru
           $deadline = (Get-Date).AddMinutes(4)
           while (-not (Test-Path $result) -and -not $process.HasExited -and (Get-Date) -lt $deadline) {
             Start-Sleep -Seconds 1

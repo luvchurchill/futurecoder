@@ -9,7 +9,7 @@ const PORT = 41731;
 const APP_ORIGIN = `http://${HOST}:${PORT}`;
 const COURSE_URL = `${APP_ORIGIN}/course/`;
 const SMOKE_TEST = process.argv.includes("--smoke-test");
-const SMOKE_RESULT_PATH = process.argv
+const SMOKE_RESULT_PATH = process.env.FUTURECODER_SMOKE_RESULT || process.argv
   .find(argument => argument.startsWith("--smoke-result="))
   ?.slice("--smoke-result=".length);
 
