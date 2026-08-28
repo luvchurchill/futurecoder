@@ -1,0 +1,134 @@
+name: Windows offline installer
+
+on:
+  push:
+    branches:
+      - main
+      - windows-offline
+    tags:
+      - 'v*'
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12.1'
+          cache: pip
+
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22.17.0'
+          cache: npm
+          cache-dependency-path: |
+            frontend/package-lock.json
+            desktop/package-lock.json
+
+      - name: Install Poetry
+        run: python -m pip install poetry==2.2.1
+
+      - name: Install dependencies
+        shell: pwsh
+        run: |
+          poetry install --no-interaction
+          npm ci --prefix frontend
+          npm ci --prefix desktop
+
+      - name: Set tagged release version
+        if: startsWith(github.ref, 'refs/tags/v')
+        working-directory: desktop
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}".Substring(1)
+          if ($version -notmatch '^\d+\.\d+\.\d+([-.][0-9A-Za-z.-]+)?$') {
+            throw "Tag must contain a semantic version such as v0.1.0"
+          }
+          npm version $version --no-git-tag-version
+
+      - name: Generate offline course
+        shell: pwsh
+        env:
+          FUTURECODER_LANGUAGE: en
+          FUTURECODER_OFFLINE: '1'
+        run: |
+          poetry run python -m translations.generate_po_file
+          poetry run python -m scripts.generate_static_files
+
+      - name: Build offline frontend
+        working-directory: frontend
+        shell: pwsh
+        env:
+          CI: 'false'
+          GENERATE_SOURCEMAP: 'false'
+          NODE_OPTIONS: '--max-old-space-size=4096'
+          REACT_APP_DISABLE_FIREBASE: '1'
+          REACT_APP_LANGUAGE: en
+          REACT_APP_OFFLINE_DESKTOP: '1'
+        run: npm run build
+
+      - name: Validate course and desktop server
+        shell: pwsh
+        run: |
+          poetry run python -m scripts.check_offline_build
+          npm test --prefix desktop
+
+      - name: Build Windows web installer
+        working-directory: desktop
+        env:
+          CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CSC_KEY_PASSWORD }}
+          CSC_LINK: ${{ secrets.WINDOWS_CSC_LINK }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: npm run pack:win
+
+      - name: Smoke test packaged application
+        shell: pwsh
+        run: |
+          $process = Start-Process -FilePath '.\desktop\release\win-unpacked\futurecoder Offline.exe' -ArgumentList '--smoke-test' -Wait -PassThru
+          if ($process.ExitCode -ne 0) {
+            throw "Packaged desktop smoke test failed with exit code $($process.ExitCode)"
+          }
+
+      - name: Upload installer bundle
+        uses: actions/upload-artifact@v7
+        with:
+          name: futurecoder-offline-windows-${{ github.ref_name }}
+          if-no-files-found: error
+          path: desktop/release/nsis-web/
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download installer bundle
+        uses: actions/download-artifact@v8
+        with:
+          name: futurecoder-offline-windows-${{ github.ref_name }}
+          path: release
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          mapfile -d '' assets < <(find release -type f -print0)
+          if (( ${#assets[@]} == 0 )); then
+            echo "No release assets were downloaded" >&2
+            exit 1
+          fi
+          gh release create "${{ github.ref_name }}" "${assets[@]}" \
+            --generate-notes --title "futurecoder Offline ${{ github.ref_name }}"

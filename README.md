@@ -153,6 +153,94 @@ Several debuggers are provided, including [snoop](https://github.com/alexmojaki/
 
 To learn more about the system, see the [contributing guide](how_to_contribute.md).
 
+## Windows offline edition
+
+The repository also contains an experimental English-language desktop edition
+for Windows 10 and 11 on x64 processors. Its small web installer downloads the
+complete application payload once from a GitHub Release. After installation,
+the course, Pyodide runtime, required Python libraries, Snoop, Bird's Eye, and
+student progress all work without an internet connection.
+
+The desktop build deliberately disables Firebase login, cloud progress,
+analytics, Sentry, and non-local application network requests. Progress is
+stored in Electron's local application data and is retained when the app is
+upgraded or uninstalled. Python packages required by the official lessons are
+included; arbitrary third-party packages that are not already bundled cannot
+be installed while offline. The online-only Python Tutor activities are
+adapted to the bundled debuggers in this edition. External reading links may
+still be shown, but they are not required to complete the course.
+
+### Build and validate
+
+The Windows workflow in `.github/workflows/windows-desktop.yml` is the
+authoritative build. It installs Python 3.12.1, Poetry 2.2.1, Node 22.17.0, and
+the locked frontend and Electron dependencies. It then generates an offline
+course, builds the React frontend, audits the packaged resources, tests the
+local server, creates the NSIS web installer, and smoke-tests the packaged app.
+
+For frontend development on any supported host:
+
+```sh
+poetry install
+npm ci --prefix frontend
+npm ci --prefix desktop
+FUTURECODER_LANGUAGE=en FUTURECODER_OFFLINE=1 \
+  poetry run python -m translations.generate_po_file
+FUTURECODER_LANGUAGE=en FUTURECODER_OFFLINE=1 \
+  poetry run python -m scripts.generate_static_files
+cd frontend
+CI=false GENERATE_SOURCEMAP=false NODE_OPTIONS=--max-old-space-size=4096 \
+  REACT_APP_DISABLE_FIREBASE=1 REACT_APP_LANGUAGE=en \
+  REACT_APP_OFFLINE_DESKTOP=1 npm run build
+cd ..
+poetry run python -m scripts.check_offline_build
+npm test --prefix desktop
+```
+
+Run `npm run pack:win --prefix desktop` on Windows to create an unsigned local
+web-installer bundle under `desktop/release/nsis-web/`. Keep the generated
+installer, package, and metadata files together when testing an unpublished
+build. An unsigned installer will normally produce a Microsoft SmartScreen
+warning.
+
+### Fork, push, and publish
+
+Create a fork using GitHub's **Fork** button. In this local clone, keep the
+original project as `upstream` and make your fork the writable `origin`:
+
+```sh
+git remote rename origin upstream
+git remote add origin git@github.com/YOUR_USERNAME/futurecoder.git
+git push -u origin windows-offline
+```
+
+After merging `windows-offline` into your fork's `main`, tag a semantic version
+to publish the installer and downloadable payload to your fork's public GitHub
+Releases page:
+
+```sh
+git switch main
+git pull origin main
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+Pushes to `main` or `windows-offline` and pull requests targeting `main` build
+downloadable Actions artifacts but do not publish releases. The web installer
+requires a public repository because it downloads its payload without GitHub
+authentication. Code signing is not configured by default. If signing
+credentials become available, add the base64-encoded certificate as the
+Actions secret `WINDOWS_CSC_LINK` and its password as
+`WINDOWS_CSC_KEY_PASSWORD`.
+
+### Status and limitations
+
+The desktop edition is installable and testable but remains an unsigned v0.1
+until it has been installed and exercised on the target child's Windows
+computer. Automatic application updates, ARM64/32-bit Windows, languages other
+than English, Python Tutor, and arbitrary offline PyPI packages are not part of
+this first version. Running a newer web installer is the update mechanism.
+
 ## Controls
 
 To explore the course more freely:

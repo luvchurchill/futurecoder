@@ -113,8 +113,31 @@ def main():
     print("Generating files...")
     t.set_language(os.environ.get("FUTURECODER_LANGUAGE", "en"))
 
-    json_to_file(list(load_chapters()), frontend_src / "chapters.json")
-    json_to_file(get_pages(), frontend_src / "book/pages.json.load_by_url")
+    chapters = list(load_chapters())
+    if os.environ.get("FUTURECODER_OFFLINE") == "1":
+        if t.current_language not in (None, "en"):
+            raise ValueError("The offline desktop course currently supports English only")
+        from core.offline_course import apply_offline_course_adaptations
+
+        apply_offline_course_adaptations()
+        # English translations are identical to the source strings. Switch to
+        # source mode so the deliberate offline wording overrides are not
+        # rejected by the translation consistency assertion.
+        t.current_language = None
+        t.translation = None
+
+    pages_data = get_pages()
+    if os.environ.get("FUTURECODER_OFFLINE") == "1":
+        offline_title = "Following Program Execution with <code>snoop</code>"
+        page_slug = "UnderstandingProgramsWithPythonTutor"
+        pages_data["pages"][page_slug]["title"] = offline_title
+        for chapter in chapters:
+            for page in chapter["pages"]:
+                if page["slug"] == page_slug:
+                    page["title"] = offline_title
+
+    json_to_file(chapters, frontend_src / "chapters.json")
+    json_to_file(pages_data, frontend_src / "book/pages.json.load_by_url")
     json_to_file(dict(frontend_terms()), frontend_src / "terms.json", indent=4)
 
     birdseye_dest = frontend / "public/birdseye"
@@ -122,14 +145,27 @@ def main():
     shutil.copytree(Path(birdseye.__file__).parent / "static", birdseye_dest, dirs_exist_ok=True)
 
     roots = get_roots()
+    offline_desktop = os.environ.get("FUTURECODER_OFFLINE") == "1"
+    if offline_desktop:
+        # virtualenv may inject this helper depending on the host tooling. It
+        # is not a futurecoder runtime dependency and should not make desktop
+        # builds differ between Linux and Windows runners.
+        roots = [root for root in roots if root != "_virtualenv.py"]
     core_imports = "\n".join(roots)
     core_imports_path = core_dir / "core_imports.txt"
     if os.environ.get("FIX_CORE_IMPORTS"):
         core_imports_path.write_text(core_imports)
-    elif core_imports_path.read_text() != core_imports:
+    else:
+        recorded_core_imports = core_imports_path.read_text()
+        if offline_desktop:
+            recorded_core_imports = "\n".join(
+                line for line in recorded_core_imports.splitlines()
+                if line != "_virtualenv.py"
+            )
+    if not os.environ.get("FIX_CORE_IMPORTS") and recorded_core_imports != core_imports:
         raise ValueError(
             f"core_imports.txt is out of date, run with FIX_CORE_IMPORTS=1.\n"
-            f"{core_imports}\n!=\n{core_imports_path.read_text()}"
+            f"{core_imports}\n!=\n{recorded_core_imports}"
         )
 
     with tarfile.open(frontend_src / "python_core.tar.load_by_url", "w") as tar:
