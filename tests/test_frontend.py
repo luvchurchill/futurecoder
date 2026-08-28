@@ -278,7 +278,7 @@ list
     # Hidden solution contains correct text
     code = driver.find_element(By.CSS_SELECTOR, ".gradual-solution code")
     assert (
-        code.text
+        code.get_attribute("textContent")
         == """\
 for i in range(len(things)):
     if to_find == things[i]:
