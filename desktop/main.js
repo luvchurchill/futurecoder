@@ -1,5 +1,6 @@
 const path = require("node:path");
 const {app, BrowserWindow, dialog} = require("electron");
+const {isAllowedNavigation, isBirdseyeViewerUrl} = require("./navigation");
 const {createCourseServer} = require("./server");
 
 const HOST = "127.0.0.1";
@@ -9,6 +10,19 @@ const COURSE_URL = `${APP_ORIGIN}/course/`;
 const SMOKE_TEST = process.argv.includes("--smoke-test");
 
 let courseServer;
+
+const windowOptions = {
+  width: 1280,
+  height: 820,
+  minWidth: 900,
+  minHeight: 650,
+  backgroundColor: "#ffffff",
+  webPreferences: {
+    contextIsolation: true,
+    nodeIntegration: false,
+    sandbox: true,
+  },
+};
 
 function courseRoot() {
   return app.isPackaged
@@ -30,6 +44,54 @@ function blockNetworkRequests(targetSession) {
       callback({cancel: !allowed});
     },
   );
+}
+
+function preventExternalNavigation(webContents) {
+  webContents.on("will-navigate", (event, targetUrl) => {
+    if (!isAllowedNavigation(targetUrl, APP_ORIGIN)) {
+      event.preventDefault();
+    }
+  });
+}
+
+function allowBirdseyeViewer(window) {
+  window.webContents.setWindowOpenHandler(({url}) => {
+    if (!isBirdseyeViewerUrl(url, APP_ORIGIN)) {
+      return {action: "deny"};
+    }
+    return {
+      action: "allow",
+      overrideBrowserWindowOptions: {
+        ...windowOptions,
+        show: !SMOKE_TEST,
+        title: "Bird's Eye - futurecoder Offline",
+        webPreferences: {
+          ...windowOptions.webPreferences,
+          session: window.webContents.session,
+        },
+      },
+    };
+  });
+  window.webContents.on("did-create-window", (childWindow) => {
+    preventExternalNavigation(childWindow.webContents);
+    childWindow.webContents.setWindowOpenHandler(() => ({action: "deny"}));
+  });
+}
+
+function waitFor(predicate, timeoutMs, message) {
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      clearInterval(interval);
+      reject(new Error(message));
+    }, timeoutMs);
+    const interval = setInterval(() => {
+      const value = predicate();
+      if (!value) return;
+      clearTimeout(timeout);
+      clearInterval(interval);
+      resolve(value);
+    }, 100);
+  });
 }
 
 async function runSmokeTest(window) {
@@ -87,6 +149,64 @@ async function runSmokeTest(window) {
     if (!pythonResult.ranPython || pythonResult.savedLocalData !== "preserved") {
       throw new Error(`Python smoke test failed: ${JSON.stringify(pythonResult)}`);
     }
+
+    const birdseyeWindowPromise = waitFor(
+      () => BrowserWindow.getAllWindows().find(candidate => candidate !== window),
+      45000,
+      "Timed out waiting for the Bird's Eye window",
+    );
+    await window.webContents.executeJavaScript(`(async () => {
+      window.location.hash = "ide";
+      const deadline = Date.now() + 10000;
+      while (Date.now() < deadline) {
+        const input = document.querySelector("#editor textarea");
+        const button = [...document.querySelectorAll(".editor-buttons button")]
+          .find(candidate => candidate.textContent.includes("birdseye"));
+        if (input && button && !button.disabled) {
+          input.focus();
+          return true;
+        }
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      throw new Error("Timed out waiting for the Bird's Eye editor controls");
+    })()`);
+    window.webContents.insertText("numbers = [1, 2, 3]\\nprint(numbers[0])");
+    await window.webContents.executeJavaScript(`(async () => {
+      const deadline = Date.now() + 5000;
+      while (Date.now() < deadline) {
+        const state = window.reduxStore?.getState().book;
+        if (state?.editorContent.includes("numbers = [1, 2, 3]")) {
+          const button = [...document.querySelectorAll(".editor-buttons button")]
+            .find(candidate => candidate.textContent.includes("birdseye"));
+          button.click();
+          return true;
+        }
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      throw new Error("Timed out entering the Bird's Eye smoke-test program");
+    })()`);
+
+    const birdseyeWindow = await birdseyeWindowPromise;
+    await waitFor(
+      () => !birdseyeWindow.webContents.isLoading(),
+      15000,
+      "Timed out loading the Bird's Eye viewer",
+    );
+    const birdseyeResult = await birdseyeWindow.webContents.executeJavaScript(`(async () => {
+      const deadline = Date.now() + 10000;
+      while (Date.now() < deadline) {
+        const code = document.querySelector("#code");
+        if (code?.textContent.includes("numbers = [1, 2, 3]")) {
+          return {renderedCode: true, expressionBoxes: code.querySelectorAll(".box").length};
+        }
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      throw new Error("Timed out rendering the Bird's Eye trace");
+    })()`);
+    if (!birdseyeResult.renderedCode || birdseyeResult.expressionBoxes < 1) {
+      throw new Error(`Bird's Eye smoke test failed: ${JSON.stringify(birdseyeResult)}`);
+    }
+    birdseyeWindow.close();
   } catch (error) {
     console.error(error);
     process.exitCode = 1;
@@ -97,31 +217,18 @@ async function runSmokeTest(window) {
 }
 
 async function createWindow() {
-  const webPreferences = {
-    contextIsolation: true,
-    nodeIntegration: false,
-    sandbox: true,
-  };
+  const options = {...windowOptions, webPreferences: {...windowOptions.webPreferences}};
   if (SMOKE_TEST) {
-    webPreferences.partition = `futurecoder-offline-smoke-${process.pid}`;
+    options.webPreferences.partition = `futurecoder-offline-smoke-${process.pid}`;
   }
   const window = new BrowserWindow({
-    width: 1280,
-    height: 820,
-    minWidth: 900,
-    minHeight: 650,
+    ...options,
     show: !SMOKE_TEST,
-    backgroundColor: "#ffffff",
-    webPreferences,
   });
   blockNetworkRequests(window.webContents.session);
 
-  window.webContents.setWindowOpenHandler(() => ({action: "deny"}));
-  window.webContents.on("will-navigate", (event, targetUrl) => {
-    if (!targetUrl.startsWith(`${APP_ORIGIN}/`)) {
-      event.preventDefault();
-    }
-  });
+  allowBirdseyeViewer(window);
+  preventExternalNavigation(window.webContents);
 
   if (SMOKE_TEST) {
     await runSmokeTest(window);

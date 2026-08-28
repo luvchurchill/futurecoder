@@ -177,6 +177,9 @@ authoritative build. It installs Python 3.12.1, Poetry 2.2.1, Node 22.17.0, and
 the locked frontend and Electron dependencies. It then generates an offline
 course, builds the React frontend, audits the packaged resources, tests the
 local server, creates the NSIS web installer, and smoke-tests the packaged app.
+The packaged smoke test executes Python with Pyodide and opens a rendered
+Bird's Eye trace, so both offline execution paths are checked in the release
+environment.
 
 For frontend development on any supported host:
 

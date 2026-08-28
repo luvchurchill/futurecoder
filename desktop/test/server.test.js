@@ -4,7 +4,10 @@ const http = require("node:http");
 const os = require("node:os");
 const path = require("node:path");
 const test = require("node:test");
+const {isAllowedNavigation, isBirdseyeViewerUrl} = require("../navigation");
 const {contentType, createCourseServer, resolveCoursePath} = require("../server");
+
+const appOrigin = "http://127.0.0.1:41731";
 
 function request(port, pathname, method = "GET") {
   return new Promise((resolve, reject) => {
@@ -35,6 +38,26 @@ test("recognises generated load-by-URL asset types", () => {
   assert.equal(contentType("pages.json.12345678.load_by_url"), "application/json; charset=utf-8");
   assert.equal(contentType("python_core.tar.12345678.load_by_url"), "application/x-tar");
   assert.equal(contentType("pyodide.asm.wasm"), "application/wasm");
+});
+
+test("allows only the local Bird's Eye viewer to open a window", () => {
+  assert.equal(
+    isBirdseyeViewerUrl(`${appOrigin}/course/birdseye/?call_id=abc123`, appOrigin),
+    true,
+  );
+  assert.equal(isBirdseyeViewerUrl(`${appOrigin}/course/birdseye/`, appOrigin), false);
+  assert.equal(isBirdseyeViewerUrl(`${appOrigin}/course/`, appOrigin), false);
+  assert.equal(
+    isBirdseyeViewerUrl("https://example.com/course/birdseye/?call_id=abc123", appOrigin),
+    false,
+  );
+});
+
+test("allows navigation only within the fixed local app origin", () => {
+  assert.equal(isAllowedNavigation(`${appOrigin}/course/`, appOrigin), true);
+  assert.equal(isAllowedNavigation(`${appOrigin}/course/birdseye/?call_id=1`, appOrigin), true);
+  assert.equal(isAllowedNavigation("https://futurecoder.io/course/", appOrigin), false);
+  assert.equal(isAllowedNavigation("not a URL", appOrigin), false);
 });
 
 test("serves course files with isolation and MIME headers", async (t) => {
