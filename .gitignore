@@ -150,3 +150,6 @@ translations/chunks/
 # Desktop packaging output
 desktop/node_modules/
 desktop/release/
+
+# Local Microsoft Store submission checklist
+msftstore.md
