@@ -103,13 +103,12 @@ jobs:
           while (-not (Test-Path $result) -and (Get-Date) -lt $deadline) {
             Start-Sleep -Seconds 1
           }
-          if (-not $process.HasExited) {
-            & taskkill.exe /PID $process.Id /T /F 2>&1 | Out-Null
-          }
           if (-not (Test-Path $result)) {
+            Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
             throw 'Packaged desktop smoke test did not produce a result within 90 seconds'
           }
           $smoke = Get-Content $result -Raw | ConvertFrom-Json
+          Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
           if (-not $smoke.success) {
             throw "Packaged desktop smoke test failed: $($smoke.error)"
           }
