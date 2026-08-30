@@ -9,6 +9,7 @@ module.exports = {
   },
   files: [
     "main.js",
+    "navigation.js",
     "server.js",
     "package.json",
   ],

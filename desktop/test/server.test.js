@@ -6,8 +6,15 @@ const path = require("node:path");
 const test = require("node:test");
 const {isAllowedNavigation, isBirdseyeViewerUrl} = require("../navigation");
 const {contentType, createCourseServer, resolveCoursePath} = require("../server");
+const builderConfig = require("../electron-builder.config.cjs");
 
 const appOrigin = "http://127.0.0.1:41731";
+
+test("packages every local module required by the desktop entry point", () => {
+  assert.equal(builderConfig.files.includes("main.js"), true);
+  assert.equal(builderConfig.files.includes("navigation.js"), true);
+  assert.equal(builderConfig.files.includes("server.js"), true);
+});
 
 function request(port, pathname, method = "GET") {
   return new Promise((resolve, reject) => {
