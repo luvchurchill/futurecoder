@@ -36,6 +36,14 @@ Node tests, native course transcript test, and eight isolated linting tests pass
 Linux runtime checks are supplementary: Windows CI tests the actual ia32 and x64
 packages and the ia32 installer.
 
+## Windows evidence (2026-09-18)
+
+[Windows build 35399022113](https://github.com/luvchurchill/futurecoder/actions/runs/35399022113)
+passed the offline audit, six desktop tests, eight linting tests, and native course
+transcript comparison. Both actual Windows executables passed architecture/version
+checks and 285 course cases each. The installed ia32 copy passed another 285 cases
+and all runtime checks; silent installation and uninstallation passed.
+
 ## Remaining device validation
 
 There is no Windows 7 machine or VM available on this server. CI uses modern

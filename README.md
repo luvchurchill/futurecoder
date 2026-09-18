@@ -258,6 +258,9 @@ Actions secret `WINDOWS_CSC_LINK` and its password as
 
 ### Status and limitations
 
+See [Windows validation](WINDOWS_VALIDATION.md) for automated test coverage,
+verified results, and the remaining Windows 7 device checklist.
+
 The desktop edition is installable and testable but remains an unsigned v0.1
 until it has been installed and exercised on the target child's Windows
 computer. The legacy edition is built for Windows 7 SP1, but installation,
