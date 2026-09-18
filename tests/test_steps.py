@@ -65,6 +65,14 @@ def test_steps():
 
         assert response["passed"] == (not is_message), step
 
+    # FullRunner canonicalises its virtual filename with the host OS. Keep the
+    # golden transcript portable without changing any course output assertions.
+    transcript = json.loads(
+        json.dumps(transcript).replace(
+            json.dumps(runner.filename)[1:-1], "/my_program.py"
+        )
+    )
+
     dirpath = Path(__file__).parent / "golden_files" / lang
     dirpath.mkdir(parents=True, exist_ok=True)
     path = dirpath / "test_transcript.json"

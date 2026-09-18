@@ -168,8 +168,8 @@ with two Windows editions, both produced by every Windows build and release:
 
 Both editions retain the same local progress and application identity. Install
 one edition at a time. The 32-bit edition also runs on 64-bit Windows.
- After installation,
-the course, Pyodide runtime, required Python libraries, Snoop, Bird's Eye, and
+
+After installation, the course, Pyodide runtime, required Python libraries, Snoop, Bird's Eye, and
 student progress all work without an internet connection.
 
 The desktop build deliberately disables Firebase login, cloud progress,
