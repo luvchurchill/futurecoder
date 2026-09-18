@@ -61,6 +61,8 @@ async function runChecks(window, courseUrl) {
     throw new Error('Progress/editor persistence failed after reload');
   })()`);
   result.checks.push('reload-persistence');
+  delete result.progress;
+  delete result.pageSlug;
   return result;
 }
 module.exports = {runChecks};

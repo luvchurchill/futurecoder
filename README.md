@@ -191,9 +191,11 @@ local server, creates both installers, verifies each executable's PE architectur
 and tests Pyodide inside both packaged apps. Validation runs all generated course
 test entries (including Snoop and Bird's Eye), arithmetic, comprehensions, input,
 sleep, exception recovery, external-request blocking, and saved editor/progress
-across a reload. Both editions must pass before a tagged release is published.
+across a reload. The 32-bit installer is also silently installed, the installed
+application retested, and then uninstalled. Both editions must pass before a tagged release is published.
 CI uploads JSON validation reports separately from the release installers.
-Windows CI runs on modern Windows; it does not establish Windows 7 OS compatibility. The desktop tests also cover the restricted Bird's Eye window
+Windows CI runs on modern Windows; it does not establish Windows 7 OS compatibility. The desktop tests also cover the restricted
+Bird's Eye window
 policy and nested local viewer route.
 
 For frontend development on any supported host:
