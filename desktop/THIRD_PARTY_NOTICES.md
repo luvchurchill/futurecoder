@@ -5,7 +5,9 @@ MIT-licensed code. The corresponding projects retain their own copyrights and
 licenses. Important runtime components include:
 
 - Electron (MIT) and Chromium. Electron distributions include Electron's
-  license and Chromium's notices.
+  license and Chromium's notices. The legacy Windows 7 ia32 build pins
+  Electron 22.3.27 in `electron-builder.win7.cjs`; the x64 runtime is locked
+  in `desktop/package-lock.json`.
 - Pyodide (Mozilla Public License 2.0), including its CPython/WebAssembly
   runtime and Python standard library bundle.
 - React (MIT), Workbox (MIT), and the other JavaScript packages recorded in

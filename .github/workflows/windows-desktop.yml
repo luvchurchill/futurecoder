@@ -82,7 +82,13 @@ jobs:
         shell: pwsh
         run: |
           poetry run python -m scripts.check_offline_build
+          if ($LASTEXITCODE -ne 0) { throw 'Offline audit failed' }
           npm test --prefix desktop
+          if ($LASTEXITCODE -ne 0) { throw 'Desktop tests failed' }
+          poetry run pytest tests/test_linting.py -q
+          if ($LASTEXITCODE -ne 0) { throw 'Linting tests failed' }
+          poetry run pytest tests/test_steps.py -q
+          if ($LASTEXITCODE -ne 0) { throw 'Course tests failed' }
 
       - name: Build Windows web installer
         working-directory: desktop
@@ -92,33 +98,27 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: npm run pack:win
 
-      - name: Smoke test packaged application
-        timeout-minutes: 3
+      - name: Test both packaged applications
+        timeout-minutes: 20
         shell: pwsh
-        run: |
-          $result = Join-Path $env:RUNNER_TEMP 'futurecoder-smoke-result.json'
-          $env:FUTURECODER_SMOKE_RESULT = $result
-          $process = Start-Process -FilePath '.\desktop\release\win-unpacked\futurecoder Offline.exe' -ArgumentList '--smoke-test' -PassThru
-          $deadline = (Get-Date).AddSeconds(90)
-          while (-not (Test-Path $result) -and (Get-Date) -lt $deadline) {
-            Start-Sleep -Seconds 1
-          }
-          if (-not (Test-Path $result)) {
-            Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
-            throw 'Packaged desktop smoke test did not produce a result within 90 seconds'
-          }
-          $smoke = Get-Content $result -Raw | ConvertFrom-Json
-          Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
-          if (-not $smoke.success) {
-            throw "Packaged desktop smoke test failed: $($smoke.error)"
-          }
+        run: ./desktop/test-packaged.ps1
 
       - name: Upload installer bundle
         uses: actions/upload-artifact@v7
         with:
           name: futurecoder-offline-windows-${{ github.run_id }}
           if-no-files-found: error
-          path: desktop/release/nsis-web/
+          path: |
+            desktop/release/nsis-web/
+            desktop/release/win7-ia32/*.exe
+            desktop/release/win7-ia32/*.blockmap
+
+      - name: Upload validation reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: futurecoder-validation-${{ github.run_id }}
+          path: desktop/release/*-smoke-result.json
 
   release:
     if: startsWith(github.ref, 'refs/tags/v')
@@ -145,4 +145,5 @@ jobs:
             exit 1
           fi
           gh release create "${{ github.ref_name }}" "${assets[@]}" \
+            --notes 'Includes the x64 Windows 10/11 web installer and a self-contained 32-bit Windows 7 SP1 installer (win7-ia32). The legacy build uses Electron 22.3.27, which no longer receives security updates. Both packaged applications pass automated course/runtime checks on modern Windows. Actual Windows 7 installation and device validation remain pending.' \
             --generate-notes --title "futurecoder Offline ${{ github.ref_name }}"

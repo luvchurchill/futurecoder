@@ -156,8 +156,19 @@ To learn more about the system, see the [contributing guide](how_to_contribute.m
 ## Windows offline edition
 
 The repository also contains an experimental English-language desktop edition
-for Windows 10 and 11 on x64 processors. Its small web installer downloads the
-complete application payload once from a GitHub Release. After installation,
+with two Windows editions, both produced by every Windows build and release:
+
+- **x64, Windows 10/11:** the small web installer downloads the complete payload
+  once from a GitHub Release, using the current Electron runtime.
+- **32-bit (ia32), Windows 7 SP1/8/8.1 and newer:** the self-contained
+  `futurecoder-Offline-Setup-VERSION-win7-ia32.exe` includes the complete payload
+  and needs no internet during installation. It pins Electron 22.3.27, the final
+  Electron line supporting Windows 7. This legacy runtime no longer receives
+  security updates; it is intended for the restricted offline course.
+
+Both editions retain the same local progress and application identity. Install
+one edition at a time. The 32-bit edition also runs on 64-bit Windows.
+ After installation,
 the course, Pyodide runtime, required Python libraries, Snoop, Bird's Eye, and
 student progress all work without an internet connection.
 
@@ -176,8 +187,13 @@ The Windows workflow in `.github/workflows/windows-desktop.yml` is the
 authoritative build. It installs Python 3.12.1, Poetry 2.2.1, Node 22.17.0, and
 the locked frontend and Electron dependencies. It then generates an offline
 course, builds the React frontend, audits the packaged resources, tests the
-local server, creates the NSIS web installer, and smoke-tests Pyodide in the
-packaged app. The desktop tests also cover the restricted Bird's Eye window
+local server, creates both installers, verifies each executable's PE architecture,
+and tests Pyodide inside both packaged apps. Validation runs all generated course
+test entries (including Snoop and Bird's Eye), arithmetic, comprehensions, input,
+sleep, exception recovery, external-request blocking, and saved editor/progress
+across a reload. Both editions must pass before a tagged release is published.
+CI uploads JSON validation reports separately from the release installers.
+Windows CI runs on modern Windows; it does not establish Windows 7 OS compatibility. The desktop tests also cover the restricted Bird's Eye window
 policy and nested local viewer route.
 
 For frontend development on any supported host:
@@ -200,7 +216,10 @@ npm test --prefix desktop
 ```
 
 Run `npm run pack:win --prefix desktop` on Windows to create an unsigned local
-web-installer bundle under `desktop/release/nsis-web/`. Keep the generated
+x64 web-installer bundle under `desktop/release/nsis-web/` and the self-contained
+32-bit installer under `desktop/release/win7-ia32/`. Run
+`pwsh -File desktop/test-packaged.ps1` to validate both packaged executables.
+Keep the generated
 installer, package, and metadata files together when testing an unpublished
 build. An unsigned installer will normally produce a Microsoft SmartScreen
 warning.
@@ -239,7 +258,11 @@ Actions secret `WINDOWS_CSC_LINK` and its password as
 
 The desktop edition is installable and testable but remains an unsigned v0.1
 until it has been installed and exercised on the target child's Windows
-computer. Automatic application updates, ARM64/32-bit Windows, languages other
+computer. The legacy edition is built for Windows 7 SP1, but installation,
+launch, lesson execution, and uninstall still require validation on a real
+Windows 7 SP1 32-bit machine or VM. Modern Windows CI and Linux Electron tests
+cannot substitute for that check. 32-bit process memory limits also apply.
+Automatic application updates, ARM64 Windows, languages other
 than English, Python Tutor, and arbitrary offline PyPI packages are not part of
 this first version. Running a newer web installer is the update mechanism.
 

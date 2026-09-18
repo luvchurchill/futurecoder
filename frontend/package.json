@@ -59,7 +59,8 @@
   },
   "browserslist": {
     "production": [
-      "supports sharedarraybuffer"
+      "supports sharedarraybuffer",
+      "Chrome 108"
     ],
     "development": [
       "last 1 chrome version",

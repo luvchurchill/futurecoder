@@ -9,6 +9,8 @@ module.exports = {
   },
   files: [
     "main.js",
+    "smoke.js",
+    "smoke-course.py",
     "navigation.js",
     "server.js",
     "package.json",

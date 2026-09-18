@@ -8,8 +8,7 @@
   "private": true,
   "scripts": {
     "test": "node --test",
-    "pack:win": "electron-builder --config electron-builder.config.cjs --win nsis-web --x64 --publish never",
-    "release:win": "electron-builder --config electron-builder.config.cjs --win nsis-web --x64 --publish always"
+    "pack:win": "node build-windows.js"
   },
   "devDependencies": {
     "electron": "44.0.0",
