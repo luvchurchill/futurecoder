@@ -205,7 +205,7 @@ export const showCodeResult = ({birdseyeUrl, passed}) => {
   pendingOutput = [];
 
   if (passed) {
-    moveStep(1);
+    moveStep(1, true);
   }
 
   if (birdseyeUrl) {

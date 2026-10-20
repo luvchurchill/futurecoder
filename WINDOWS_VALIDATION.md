@@ -9,6 +9,8 @@ The x64 edition uses Electron 44.0.0; the Windows 7 ia32 edition pins 22.3.27.
 - Offline course/resource audit, including bundled Pyodide packages and adapted
   Python Tutor activities.
 - Six desktop packaging, navigation, local server, MIME, and isolation tests.
+- Four frontend regressions for prerequisite order, reading-page visits, older
+  out-of-order progress, immediate saves, and storage failure fallback.
 - Native Python course transcript test and eight linting tests. These suites run
   in separate processes because the course test changes global translation state.
 - PE machine inspection plus runtime-reported architecture and Electron version
@@ -18,7 +20,11 @@ The x64 edition uses Electron 44.0.0; the Windows 7 ia32 edition pins 22.3.27.
 - Through the application terminal: arithmetic, comprehensions, sleep, interactive
   input, exception display, and recovery after an exception.
 - Browser isolation and external HTTP request rejection.
-- Editor contents, page selection, course progress, and local storage after reload.
+- Rejection of locked startup/query/hash links and disabled future lesson links in
+  the contents menu; Developer mode disabled; real introductory exercise completion
+  and reading-page visits unlock subsequent lessons.
+- Editor contents, a non-initial page selection, completed exercise progress, and
+  local storage after reload.
 - Silent installation of the self-contained ia32 installer, repetition of the
   runtime checks from the installed copy, and silent uninstallation with removal
   of the application executable.
@@ -35,6 +41,16 @@ cases and all terminal/network/reload checks. The offline resource audit, six
 Node tests, native course transcript test, and eight isolated linting tests passed.
 Linux runtime checks are supplementary: Windows CI tests the actual ia32 and x64
 packages and the ia32 installer.
+
+## Lesson-order validation (2026-10-20)
+
+The Linux offline production build, resource audit, four frontend progress tests,
+six desktop tests, and eight linting tests passed. Electron 44 passed all 285 course
+cases plus locked startup/hash/contents navigation, real introductory exercise
+completion, reading-page progression, and reload persistence of completed steps,
+page selection, and editor contents. The Windows workflow now includes the frontend
+regressions and the expanded smoke checks. These Linux results do not establish
+Windows 7 device compatibility.
 
 ## Windows evidence (2026-09-18)
 

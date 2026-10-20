@@ -13,6 +13,7 @@ import {
   currentStep,
   currentStepName,
   disableLogin,
+  sequentialCourse,
   logEvent,
   movePage,
   moveStep,
@@ -441,7 +442,7 @@ const CourseText = (
     </div>
     <br/>
     {
-      user.developerMode && <StepButtons/>
+      !sequentialCourse && user.developerMode && <StepButtons/>
     }
   </>
 
@@ -656,6 +657,7 @@ const SettingsModal = ({user}) => (
   <div className="settings-modal">
     <h1>{terms.settings}</h1>
     <br/>
+    {sequentialCourse ? <p>Complete each lesson in order to unlock the next. Your progress and editor are saved automatically on this computer.</p> : <>
     <label>
       <Toggle
         defaultChecked={user.developerMode}
@@ -665,6 +667,7 @@ const SettingsModal = ({user}) => (
     </label>
 
     <p>{terms.developer_mode_description}</p>
+    </>}
   </div>
 )
 

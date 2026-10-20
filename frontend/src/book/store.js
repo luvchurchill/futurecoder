@@ -13,6 +13,10 @@ import {wrapAsync} from "../frontendlib/sentry";
 import pRetry from 'p-retry';
 import localforage from "localforage";
 import {languageConfig} from "../languages";
+import {canOpenPage, unlockedPageIndex} from "./progress";
+import {readProgressSnapshot} from "./progressStorage";
+
+export const sequentialCourse = !!process.env.REACT_APP_OFFLINE_DESKTOP;
 
 export const disableFirebase = !!process.env.REACT_APP_DISABLE_FIREBASE;
 export const disableLogin = disableFirebase || !!process.env.REACT_APP_DISABLE_LOGIN;
@@ -131,8 +135,16 @@ export const currentStepName = (state = localState) => pageProgress(state).step_
 export const currentStep = (state = localState) =>
   _.find(currentPage(state).steps, {name: currentStepName(state)});
 
+export const isPageUnlocked = (slug, state = localState) =>
+  !sequentialCourse || canOpenPage(slug, state.pages, state.pageSlugsList, state.user.pagesProgress);
+
 export const setPage = (page_slug) => {
+  if (!localState.pages[page_slug] || !isPageUnlocked(page_slug)) {
+    window.location.hash = localState.user.pageSlug;
+    return;
+  }
   setState("user.pageSlug", page_slug);
+  if (sequentialCourse) setUserStateAndDatabase(["pagesProgress", page_slug, "visited"], true);
   setState("assistant", initialState.assistant);
   afterSetPage(page_slug);
 };
@@ -172,7 +184,8 @@ export const movePage = (delta) => {
   setPageIndex(currentPage().index + delta);
 };
 
-export const moveStep = (delta) => {
+export const moveStep = (delta, passed = false) => {
+  if (sequentialCourse && (delta !== 1 || !passed)) return;
   const stepIndex = currentStep().index + delta;
   const step = currentPage().steps[stepIndex];
   if (!step) {
@@ -275,7 +288,9 @@ export const initialUser = {uid: "__futurecoder_offline__"}
 
 export const localStore = localforage.createInstance({name: "futurecoder"});
 
-const loadUserFromLocalStorePromise = localStore.getItem("user").then(user => {
+const loadUserFromLocalStorePromise = Promise.resolve().then(async () => {
+  const snapshot = sequentialCourse && readProgressSnapshot();
+  const user = snapshot || await localStore.getItem("user");
   loadUser(user || initialUser);
 });
 
@@ -325,7 +340,7 @@ const loadUserAndPages = (state, previousUser = {}) => {
     pageSlugsList
   } = state;
 
-  developerMode = developerMode || previousUser.developerMode || false;
+  developerMode = !sequentialCourse && (developerMode || previousUser.developerMode || false);
   const updates = {developerMode};
 
   const hash = window.location.hash.substring(1);
@@ -355,11 +370,18 @@ const loadUserAndPages = (state, previousUser = {}) => {
         updates[`pagesProgress/${slug}/step_name`] = step_name;
       }
     }
-    pagesProgress[slug] = {step_name};
+    pagesProgress[slug] = {step_name, visited: !!(pagesProgress[slug]?.visited || progress?.visited)};
   });
 
   migrateUserState(pages, pagesProgress, updates);
 
+  // Unknown/stale links and locked lessons resume at the first unfinished page.
+  if (!pages[pageSlug] || (sequentialCourse && !canOpenPage(pageSlug, pages, pageSlugsList, pagesProgress))) {
+    pageSlug = sequentialCourse
+      ? pageSlugsList[unlockedPageIndex(pages, pageSlugsList, pagesProgress)]
+      : pageSlugsList[0];
+  }
+  if (sequentialCourse) pagesProgress[pageSlug] = {...pagesProgress[pageSlug], visited: true};
   updateDatabase(updates);
 
   state = {...state, user: {...state.user, pagesProgress, pageSlug, developerMode}};
@@ -493,6 +515,7 @@ export const revealSolutionToken = makeAction(
 )
 
 export const setDeveloperMode = (value) => {
+  if (sequentialCourse) return;
   setUserStateAndDatabase("developerMode", value);
 }
 

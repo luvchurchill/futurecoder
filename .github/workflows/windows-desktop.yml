@@ -66,6 +66,12 @@ jobs:
           poetry run python -m translations.generate_po_file
           poetry run python -m scripts.generate_static_files
 
+      - name: Test lesson ordering and progress saving
+        working-directory: frontend
+        env:
+          CI: 'true'
+        run: npx react-scripts test --watchAll=false --runInBand
+
       - name: Build offline frontend
         working-directory: frontend
         shell: pwsh

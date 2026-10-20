@@ -3,9 +3,10 @@ import thunk from "redux-thunk";
 import logger from "redux-logger";
 import {connect} from "react-redux";
 import {dispatcher, redact, TextContainer} from "./frontendlib";
-import {bookReducer, currentStep, localStore, navigate} from "./book/store";
+import {bookReducer, currentStep, localStore, navigate, sequentialCourse} from "./book/store";
 import * as Sentry from "@sentry/react";
 import _ from "lodash";
+import {saveProgressSnapshot} from "./book/progressStorage";
 
 const sentryReduxEnhancer = Sentry.createReduxEnhancer({
   actionTransformer: action => {
@@ -64,7 +65,9 @@ const saveToLocalStoreMiddleware = store => next => async (action) => {
     return;
   }
   // Save the data in the same shape as in firebase
-  await localStore.setItem('user', {editorContent, ...user});
+  const saved = {editorContent, ...user};
+  if (sequentialCourse && user.pageSlug !== 'loading_placeholder') saveProgressSnapshot(saved);
+  await localStore.setItem('user', saved);
 };
 
 const reducer = delegateReducer(

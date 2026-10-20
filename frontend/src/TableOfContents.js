@@ -1,7 +1,7 @@
 import React from 'react';
 import "./css/toc.scss"
 import chapters from "./chapters.json"
-import {bookState} from "./book/store";
+import {bookState, isPageUnlocked, sequentialCourse} from "./book/store";
 import terms from "./terms.json"
 
 export const TableOfContents = () => {
@@ -11,7 +11,9 @@ export const TableOfContents = () => {
       <div className="toc-header">
         <div className="container">
           <h1>futurecoder</h1>
-          <div dangerouslySetInnerHTML={{__html: terms.toc_instructions}}/>
+          {sequentialCourse
+            ? <p>Complete each lesson to unlock the next. You can return to completed lessons at any time. Progress is saved automatically on this computer.</p>
+            : <div dangerouslySetInnerHTML={{__html: terms.toc_instructions}}/>}
         </div>
       </div>
 
@@ -29,8 +31,12 @@ export const TableOfContents = () => {
                     <ol>
                       {chapter.pages.map(page => {
                         const isCurrent = page.slug === current;
+                        const locked = !isPageUnlocked(page.slug);
+                        const PageLink = locked ? "span" : "a";
                           return <li>
-                            <a href={"#" + page.slug}
+                            <PageLink href={locked ? undefined : "#" + page.slug}
+                               aria-disabled={locked || undefined}
+                               title={locked ? "Complete the previous lessons first" : undefined}
                                style={isCurrent ? {
                                  border: '2px solid white',
                                  fontWeight: 'bold',
@@ -39,6 +45,7 @@ export const TableOfContents = () => {
                                } : {}}
                               // May have HTML generated from markdown
                                dangerouslySetInnerHTML={{__html: page.title}}/>
+                            {locked && " 🔒"}
                             {isCurrent && ` ${terms.current_page}`}
                           </li>;
                         }

@@ -2,7 +2,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 async function runChecks(window, courseUrl) {
-  await window.loadURL(courseUrl);
+  await window.loadURL(courseUrl + '?page=AddingStrings#AddingStrings');
   const coursePython = fs.readFileSync(path.join(__dirname, 'smoke-course.py'), 'utf8');
   const result = await window.webContents.executeJavaScript(`(async () => {
     const waitFor = async (predicate, timeoutMs = 120000) => {
@@ -27,6 +27,25 @@ async function runChecks(window, courseUrl) {
       if (state().error) throw new Error(JSON.stringify(state().error));
     };
     if (!crossOriginIsolated || !('serviceWorker' in navigator)) throw new Error('Missing browser isolation');
+    await waitFor(() => state()?.user.pageSlug === 'IntroducingTheShell' && input() && !input().disabled);
+    if (state().user.developerMode) throw new Error('Developer skip mode enabled');
+    location.hash = 'IntroducingStrings';
+    await new Promise(resolve => setTimeout(resolve, 300));
+    if (state().user.pageSlug !== 'IntroducingTheShell' || location.hash !== '#IntroducingTheShell') throw new Error('Locked hash navigation succeeded');
+    location.hash = 'toc';
+    await waitFor(() => document.querySelector('[aria-disabled="true"]'));
+    if (document.querySelector('[aria-disabled="true"]').hasAttribute('href')) throw new Error('Locked TOC entry is clickable');
+    location.hash = 'IntroducingTheShell';
+    await run('1+2', '3');
+    await waitFor(() => state().user.pagesProgress.IntroducingTheShell.step_name === 'more_calculation');
+    await run('5-6', '-1');
+    await waitFor(() => document.querySelector('.next-button'));
+    document.querySelector('.next-button').click();
+    await waitFor(() => state().user.pageSlug === 'NavigatingShellHistory');
+    document.querySelector('.next-button').click();
+    await waitFor(() => state().user.pageSlug === 'IntroducingStrings');
+    await run("'hello'", 'hello');
+    await waitFor(() => state().user.pagesProgress.IntroducingStrings.step_name === 'final_text');
     await run('print(123 * 456)', '56088');
     await run('print(sum(x*x for x in range(100)))', '328350');
     await run('import time; time.sleep(0.1); print("SLEEP_" + "OK")', 'SLEEP_OK');
@@ -41,11 +60,10 @@ async function runChecks(window, courseUrl) {
     if (!match) throw new Error('Missing course test count');
     window.reduxStore.dispatch({type: 'book_SET_STATE', path: 'editorContent', value: '# desktop persistence check'});
     localStorage.setItem('futurecoder-offline-smoke', 'preserved');
-    await new Promise(resolve => setTimeout(resolve, 1000));
     let blocked = false;
     try { await fetch('https://example.com/futurecoder-network-test'); } catch { blocked = true; }
     if (!blocked) throw new Error('External network request was allowed');
-    return {courseCases: Number(match[1]), pageSlug: state().user.pageSlug, progress: JSON.stringify(state().user.pagesProgress), checks: ['arithmetic', 'comprehension', 'sleep', 'traceback', 'recovery', 'input', 'course-exercises', 'snoop', 'birdseye', 'network-block']};
+    return {courseCases: Number(match[1]), pageSlug: state().user.pageSlug, progress: JSON.stringify(state().user.pagesProgress), checks: ['sequential-navigation', 'exercise-unlock', 'reading-page', 'arithmetic', 'comprehension', 'sleep', 'traceback', 'recovery', 'input', 'course-exercises', 'snoop', 'birdseye', 'network-block']};
   })()`);
   await window.loadURL(courseUrl);
   await window.webContents.executeJavaScript(`(async () => {

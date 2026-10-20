@@ -172,6 +172,15 @@ one edition at a time. The 32-bit edition also runs on 64-bit Windows.
 After installation, the course, Pyodide runtime, required Python libraries, Snoop, Bird's Eye, and
 student progress all work without an internet connection.
 
+Lessons in the offline edition unlock in order. Complete each exercise and open
+reading-only pages before continuing. Completed lessons remain available for
+review. The contents menu, direct page links, and saved Developer mode settings
+cannot bypass the lesson order. Existing exercise progress is retained; a previously
+skipped prerequisite must be completed before later lessons can be opened.
+Progress, the current page, and editor contents save automatically on this computer,
+including an immediate local snapshot so closing after a step does not depend on an
+asynchronous save finishing. Existing IndexedDB profiles are loaded on upgrade.
+
 The desktop build deliberately disables Firebase login, cloud progress,
 analytics, Sentry, and non-local application network requests. Progress is
 stored in Electron's local application data and is retained when the app is
@@ -215,6 +224,7 @@ CI=false GENERATE_SOURCEMAP=false NODE_OPTIONS=--max-old-space-size=4096 \
 cd ..
 poetry run python -m scripts.check_offline_build
 npm test --prefix desktop
+(cd frontend && CI=true ./node_modules/.bin/react-scripts test --watchAll=false --runInBand)
 ```
 
 Run `npm run pack:win --prefix desktop` on Windows to create an unsigned local
@@ -272,6 +282,9 @@ than English, Python Tutor, and arbitrary offline PyPI packages are not part of
 this first version. Running a newer web installer is the update mechanism.
 
 ## Controls
+
+Developer mode is available only in the upstream web edition. The offline desktop
+edition enforces lesson order and hides these controls.
 
 To explore the course more freely:
 
