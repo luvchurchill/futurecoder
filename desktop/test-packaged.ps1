@@ -12,6 +12,8 @@ function Test-Application($name, $exe, $machine, $electron, $arch, $resume = '')
     $env:FUTURECODER_SMOKE_RESUME = $resume
     $stderr = Join-Path (Resolve-Path 'desktop/release') "$name-stderr.log"
     $process = Start-Process -FilePath $exe -ArgumentList @('--smoke-test', '--enable-logging=stderr') -WindowStyle Hidden -RedirectStandardError $stderr -PassThru
+    # Keep the native handle before a fast restart check exits, so ExitCode remains available.
+    $null = $process.Handle
     try {
         $deadline = (Get-Date).AddMinutes(9)
         while (-not (Test-Path $result) -and (Get-Date) -lt $deadline) {
