@@ -209,9 +209,11 @@ list
     )
 
     # Passed onto next step
-    assert (
-        "In general, you can get the element"
-        in driver.find_element(By.CSS_SELECTOR, ".book-text").text
+    # Terminal output is rendered before the successful check advances the step.
+    WebDriverWait(driver, 10).until(
+        text_to_be_present_in_element(
+            (By.CSS_SELECTOR, ".book-text"), "In general, you can get the element"
+        )
     )
 
     # Run with snoop
