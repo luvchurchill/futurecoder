@@ -93,6 +93,14 @@ setup disc; this was corrected before the successful application tests.
 
 ## Remaining device validation
 
+The v0.1.12 release workflow exposed repeated GPU-process access violations in
+Electron 22 on the hosted Windows runner, before the course could load. Legacy
+Windows runtimes now disable hardware acceleration and use software rendering.
+Packaged smoke stderr is preserved with validation artifacts for diagnosis.
+Smoke profiles explicitly isolate both Electron user data and browser session
+data. The Linux workflow pins Ubuntu 22.04 because Python 3.12.1 is unavailable
+for the new Ubuntu 26.04 `ubuntu-latest` image.
+
 CI uses modern Windows. The additional VM test uses Embedded Standard 7, not
 retail Windows 7 or the school's actual account policies and hardware.
 

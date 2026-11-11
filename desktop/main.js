@@ -4,6 +4,12 @@ const {app, BrowserWindow, dialog} = require("electron");
 const {isAllowedNavigation, isBirdseyeViewerUrl} = require("./navigation");
 const {createCourseServer} = require("./server");
 
+// The Windows 7 runtime can crash in GPU startup on older/virtual graphics drivers.
+// The course needs no hardware rendering; use software rendering on that runtime.
+if (process.platform === 'win32' && Number(process.versions.electron.split('.')[0]) <= 22) {
+  app.disableHardwareAcceleration();
+}
+
 const HOST = "127.0.0.1";
 const PORT = 41731;
 const APP_ORIGIN = `http://${HOST}:${PORT}`;
