@@ -1,5 +1,5 @@
 $ErrorActionPreference = 'Stop'
-function Test-Application($name, $exe, $machine, $electron, $arch) {
+function Test-Application($name, $exe, $machine, $electron, $arch, $resume = '') {
     # Inspect the executable itself, not just its filename.
     $bytes = [System.IO.File]::ReadAllBytes((Resolve-Path $exe))
     $pe = [BitConverter]::ToInt32($bytes, 0x3c)
@@ -9,7 +9,8 @@ function Test-Application($name, $exe, $machine, $electron, $arch) {
     $result = Join-Path (Resolve-Path 'desktop/release') "$name-smoke-result.json"
     Remove-Item $result -ErrorAction SilentlyContinue
     $env:FUTURECODER_SMOKE_RESULT = $result
-    $process = Start-Process -FilePath $exe -ArgumentList '--smoke-test' -PassThru
+    $env:FUTURECODER_SMOKE_RESUME = $resume
+    $process = Start-Process -FilePath $exe -ArgumentList '--smoke-test' -WindowStyle Hidden -PassThru
     try {
         $deadline = (Get-Date).AddMinutes(9)
         while (-not (Test-Path $result) -and (Get-Date) -lt $deadline) {
@@ -22,23 +23,31 @@ function Test-Application($name, $exe, $machine, $electron, $arch) {
             throw "Unexpected runtime: $(Get-Content $result -Raw)"
         }
         Write-Output (Get-Content $result -Raw)
+        if (-not $process.WaitForExit(15000)) { throw "${name}: application did not close" }
+        if ($process.ExitCode -ne 0) { throw "${name}: exit code $($process.ExitCode)" }
     } finally {
         Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
         $process.WaitForExit(10000) | Out-Null
     }
+    if (-not $resume) {
+        Test-Application "$name-restart" $exe $machine $electron $arch $result
+    }
 }
+$env:FUTURECODER_SMOKE_PROFILE = Join-Path ([System.IO.Path]::GetTempPath()) ('futurecoder-profile-' + [guid]::NewGuid().ToString('N'))
 Test-Application 'x64' 'desktop/release/win-unpacked/futurecoder Offline.exe' 0x8664 '44.0.0' 'x64'
+$env:FUTURECODER_SMOKE_PROFILE = Join-Path ([System.IO.Path]::GetTempPath()) ('futurecoder-profile-' + [guid]::NewGuid().ToString('N'))
 Test-Application 'win7-ia32' 'desktop/release/win7-ia32/win-ia32-unpacked/futurecoder Offline.exe' 0x014c '22.3.27' 'ia32'
 
 # Exercise the distributable installer and its uninstaller, not just win-unpacked.
 $installers = @(Get-ChildItem 'desktop/release/win7-ia32/*-win7-ia32.exe')
 if ($installers.Count -ne 1) { throw 'Expected exactly one ia32 installer' }
 $installDir = Join-Path ([System.IO.Path]::GetTempPath()) ('futurecoder-install-' + [guid]::NewGuid().ToString('N'))
-$setup = Start-Process -FilePath $installers[0].FullName -ArgumentList @('/S', "/D=$installDir") -PassThru
+$setup = Start-Process -FilePath $installers[0].FullName -ArgumentList @('/S', "/D=$installDir") -WindowStyle Hidden -PassThru
 if (-not $setup.WaitForExit(120000)) { $setup.Kill(); throw 'Installer timed out' }
 if ($setup.ExitCode -ne 0) { throw "Installer failed: $($setup.ExitCode)" }
+$env:FUTURECODER_SMOKE_PROFILE = Join-Path ([System.IO.Path]::GetTempPath()) ('futurecoder-profile-' + [guid]::NewGuid().ToString('N'))
 Test-Application 'installed-win7-ia32' (Join-Path $installDir 'futurecoder Offline.exe') 0x014c '22.3.27' 'ia32'
-$uninstall = Start-Process -FilePath (Join-Path $installDir 'Uninstall futurecoder Offline.exe') -ArgumentList '/S' -PassThru
+$uninstall = Start-Process -FilePath (Join-Path $installDir 'Uninstall futurecoder Offline.exe') -ArgumentList '/S' -WindowStyle Hidden -PassThru
 if (-not $uninstall.WaitForExit(120000)) { $uninstall.Kill(); throw 'Uninstaller timed out' }
 if ($uninstall.ExitCode -ne 0) { throw "Uninstaller failed: $($uninstall.ExitCode)" }
 $deadline = (Get-Date).AddSeconds(60)

@@ -25,6 +25,10 @@ The x64 edition uses Electron 44.0.0; the Windows 7 ia32 edition pins 22.3.27.
   and reading-page visits unlock subsequent lessons.
 - Editor contents, a non-initial page selection, completed exercise progress, and
   local storage after reload.
+- A normal application quit followed by a new process using the same isolated,
+  persistent profile; all lesson progress, current page, editor text, and the
+  storage marker must survive. This runs for both architectures and the installed
+  ia32 application. The original temporary smoke partition only tested reloads.
 - Silent installation of the self-contained ia32 installer, repetition of the
   runtime checks from the installed copy, and silent uninstallation with removal
   of the application executable.
@@ -60,11 +64,37 @@ transcript comparison. Both actual Windows executables passed architecture/versi
 checks and 285 course cases each. The installed ia32 copy passed another 285 cases
 and all runtime checks; silent installation and uninstallation passed.
 
+## Windows 7 persistence investigation (2026-11-10)
+
+The released v0.1.11 ia32 installer was tested in the existing QEMU Windows
+Embedded Standard 7 SP1 32-bit evaluation VM (2 GB RAM, Core 2 Duo CPU model,
+WHPX, no network adapter). A separate qcow2 overlay preserved the original VM.
+Installer SHA-256:
+`dbb5dbe4662c23ae32b751431e1633a9dfa71fa1e2d83e18c2d448fe6fe2b86a`.
+
+Only the desktop test harness was replaced to support a persistent isolated
+profile, normal quit, and a second-process assertion; the released course assets
+were unchanged. All 285 course cases, sequential navigation, introductory exercise
+completion, reading-page progression, editor saving, and reload checks passed.
+The process exited normally with code 0. After rebooting the guest, a new process
+restored the same page, every step/visit record, editor text, and local-storage
+marker, and exited with code 0. The same process-restart check passed on the host
+with Electron 22.3.27 ia32. Four frontend tests and six desktop tests passed.
+
+The reported loss of progress was not reproduced on v0.1.11. This change fixes
+the release test's coverage gap; it does not claim a newly identified production
+storage bug. School installer version, Windows account/profile retention, and
+the exact close/reopen sequence remain relevant if the report recurs.
+
+Local evidence is under `tmp/win7-progress/` (serial log, host JSON reports,
+guest harness, and disk overlay). The VM password was changed with the owner's
+authorization after it expired. An initial harness attempt selected the Windows
+setup disc; this was corrected before the successful application tests.
+
 ## Remaining device validation
 
-There is no Windows 7 machine or VM available on this server. CI uses modern
-Windows. A release built with Electron 22 is therefore a Windows 7-targeted build,
-not proof of successful installation or operation on Windows 7.
+CI uses modern Windows. The additional VM test uses Embedded Standard 7, not
+retail Windows 7 or the school's actual account policies and hardware.
 
 On a Windows 7 SP1 32-bit device, verify:
 

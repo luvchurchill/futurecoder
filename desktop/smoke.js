@@ -65,6 +65,12 @@ async function runChecks(window, courseUrl) {
     if (!blocked) throw new Error('External network request was allowed');
     return {courseCases: Number(match[1]), pageSlug: state().user.pageSlug, progress: JSON.stringify(state().user.pagesProgress), checks: ['sequential-navigation', 'exercise-unlock', 'reading-page', 'arithmetic', 'comprehension', 'sleep', 'traceback', 'recovery', 'input', 'course-exercises', 'snoop', 'birdseye', 'network-block']};
   })()`);
+  await checkPersistence(window, courseUrl, result);
+  result.checks.push('reload-persistence');
+  return result;
+}
+
+async function checkPersistence(window, courseUrl, result) {
   await window.loadURL(courseUrl);
   await window.webContents.executeJavaScript(`(async () => {
     const deadline = Date.now() + 45000;
@@ -76,11 +82,13 @@ async function runChecks(window, courseUrl) {
           localStorage.getItem('futurecoder-offline-smoke') === 'preserved') return;
       await new Promise(resolve => setTimeout(resolve, 100));
     }
-    throw new Error('Progress/editor persistence failed after reload');
+    throw new Error('Progress/editor persistence failed after loading saved profile');
   })()`);
-  result.checks.push('reload-persistence');
-  delete result.progress;
-  delete result.pageSlug;
-  return result;
+  return {
+    courseCases: result.courseCases,
+    pageSlug: result.pageSlug,
+    progress: result.progress,
+    checks: [...result.checks, 'process-restart-persistence'],
+  };
 }
-module.exports = {runChecks};
+module.exports = {runChecks, checkPersistence};

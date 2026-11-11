@@ -10,6 +10,11 @@ const APP_ORIGIN = `http://${HOST}:${PORT}`;
 const COURSE_URL = `${APP_ORIGIN}/course/`;
 const SMOKE_TEST = process.argv.includes("--smoke-test");
 const SMOKE_RESULT_PATH = process.env.FUTURECODER_SMOKE_RESULT;
+const SMOKE_PROFILE = SMOKE_TEST && process.env.FUTURECODER_SMOKE_PROFILE;
+if (SMOKE_PROFILE) {
+  fs.mkdirSync(SMOKE_PROFILE, {recursive: true});
+  app.setPath('userData', SMOKE_PROFILE);
+}
 
 let courseServer;
 
@@ -92,7 +97,11 @@ async function runSmokeTest(window) {
   let validation;
 
   try {
-    validation = await require('./smoke').runChecks(window, COURSE_URL);
+    const smoke = require('./smoke');
+    const resume = process.env.FUTURECODER_SMOKE_RESUME;
+    validation = resume
+      ? await smoke.checkPersistence(window, COURSE_URL, JSON.parse(fs.readFileSync(resume, 'utf8')))
+      : await smoke.runChecks(window, COURSE_URL);
 
   } catch (error) {
     console.error(error);
@@ -103,13 +112,14 @@ async function runSmokeTest(window) {
     if (SMOKE_RESULT_PATH) {
       fs.writeFileSync(SMOKE_RESULT_PATH, JSON.stringify({success: exitCode === 0, error: failure, electron: process.versions.electron, arch: process.arch, ...validation}));
     }
-    app.exit(exitCode);
+    process.exitCode = exitCode;
+    app.quit();
   }
 }
 
 async function createWindow() {
   const options = {...windowOptions, webPreferences: {...windowOptions.webPreferences}};
-  if (SMOKE_TEST) {
+  if (SMOKE_TEST && !SMOKE_PROFILE) {
     options.webPreferences.partition = `futurecoder-offline-smoke-${process.pid}`;
   }
   const window = new BrowserWindow({
