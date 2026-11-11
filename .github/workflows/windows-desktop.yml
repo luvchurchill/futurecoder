@@ -17,7 +17,8 @@ permissions:
 
 jobs:
   build:
-    runs-on: windows-latest
+    # Electron 22 ia32 crashes in GPU-process startup on the current 2025 image.
+    runs-on: windows-2022
     steps:
       - uses: actions/checkout@v6
 
@@ -153,5 +154,5 @@ jobs:
             exit 1
           fi
           gh release create "${{ github.ref_name }}" "${assets[@]}" \
-            --notes 'Includes the x64 Windows 10/11 web installer and a self-contained 32-bit Windows 7 SP1 installer (win7-ia32). The legacy build uses Electron 22.3.27, which no longer receives security updates. Both packaged applications pass automated course/runtime checks on modern Windows. Actual Windows 7 installation and device validation remain pending.' \
+            --notes 'Includes the x64 Windows 10/11 web installer and a self-contained 32-bit Windows 7 SP1 installer (win7-ia32). The legacy build uses Electron 22.3.27 with software rendering and no longer receives security updates. Both packaged applications pass automated course/runtime and process-restart persistence checks on modern Windows. Course progression and saved progress were also checked across a reboot in an offline Windows Embedded Standard 7 SP1 x86 VM. Validation on the school hardware remains pending.' \
             --generate-notes --title "futurecoder Offline ${{ github.ref_name }}"

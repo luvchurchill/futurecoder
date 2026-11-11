@@ -94,12 +94,22 @@ setup disc; this was corrected before the successful application tests.
 ## Remaining device validation
 
 The v0.1.12 release workflow exposed repeated GPU-process access violations in
-Electron 22 on the hosted Windows runner, before the course could load. Legacy
-Windows runtimes now disable hardware acceleration and use software rendering.
+Electron 22 on the hosted Windows 2025 runner, before the course could load.
+Software rendering alone did not prevent the hosted runner crash. The build
+workflow pins Windows Server 2022 while preserving all packaged runtime tests.
+Legacy Windows runtimes also disable hardware acceleration for older drivers.
 Packaged smoke stderr is preserved with validation artifacts for diagnosis.
 Smoke profiles explicitly isolate both Electron user data and browser session
 data. The Linux workflow pins Ubuntu 22.04 because Python 3.12.1 is unavailable
 for the new Ubuntu 26.04 `ubuntu-latest` image.
+
+With the software-rendering change, the same offline Windows 7 VM again passed
+all 285 course cases and sequential-navigation checks. The application quit with
+code 0, the guest rebooted, and a fresh process restored every progress record,
+the current lesson, editor text, and storage marker, then exited with code 0.
+Evidence for this repeat is in `tmp/win7-progress/serial.log` and the guest's
+`C:\progress-test2` profile/reports. These tests used the released v0.1.11 course
+assets with the current desktop main process and restart harness.
 
 CI uses modern Windows. The additional VM test uses Embedded Standard 7, not
 retail Windows 7 or the school's actual account policies and hardware.
