@@ -10,7 +10,8 @@ function Test-Application($name, $exe, $machine, $electron, $arch, $resume = '')
     Remove-Item $result -ErrorAction SilentlyContinue
     $env:FUTURECODER_SMOKE_RESULT = $result
     $env:FUTURECODER_SMOKE_RESUME = $resume
-    $process = Start-Process -FilePath $exe -ArgumentList '--smoke-test' -WindowStyle Hidden -PassThru
+    $stderr = Join-Path (Resolve-Path 'desktop/release') "$name-stderr.log"
+    $process = Start-Process -FilePath $exe -ArgumentList @('--smoke-test', '--enable-logging=stderr') -WindowStyle Hidden -RedirectStandardError $stderr -PassThru
     try {
         $deadline = (Get-Date).AddMinutes(9)
         while (-not (Test-Path $result) -and (Get-Date) -lt $deadline) {
@@ -18,7 +19,10 @@ function Test-Application($name, $exe, $machine, $electron, $arch, $resume = '')
         }
         if (-not (Test-Path $result)) { throw "No smoke result for $name" }
         $smoke = Get-Content $result -Raw | ConvertFrom-Json
-        if (-not $smoke.success) { throw "${name}: $($smoke.error)" }
+        if (-not $smoke.success) {
+            Get-Content $stderr -Tail 40 -ErrorAction SilentlyContinue | Write-Output
+            throw "${name}: $($smoke.error)"
+        }
         if ($smoke.electron -ne $electron -or $smoke.arch -ne $arch) {
             throw "Unexpected runtime: $(Get-Content $result -Raw)"
         }

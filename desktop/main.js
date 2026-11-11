@@ -14,6 +14,7 @@ const SMOKE_PROFILE = SMOKE_TEST && process.env.FUTURECODER_SMOKE_PROFILE;
 if (SMOKE_PROFILE) {
   fs.mkdirSync(SMOKE_PROFILE, {recursive: true});
   app.setPath('userData', SMOKE_PROFILE);
+  app.setPath('sessionData', SMOKE_PROFILE);
 }
 
 let courseServer;
@@ -97,6 +98,9 @@ async function runSmokeTest(window) {
   let validation;
 
   try {
+    if (SMOKE_PROFILE && path.resolve(app.getPath('sessionData')) !== path.resolve(SMOKE_PROFILE)) {
+      throw new Error('Smoke session storage is outside the isolated profile');
+    }
     const smoke = require('./smoke');
     const resume = process.env.FUTURECODER_SMOKE_RESUME;
     validation = resume
@@ -110,7 +114,7 @@ async function runSmokeTest(window) {
   } finally {
     clearTimeout(timeout);
     if (SMOKE_RESULT_PATH) {
-      fs.writeFileSync(SMOKE_RESULT_PATH, JSON.stringify({success: exitCode === 0, error: failure, electron: process.versions.electron, arch: process.arch, ...validation}));
+      fs.writeFileSync(SMOKE_RESULT_PATH, JSON.stringify({success: exitCode === 0, error: failure, electron: process.versions.electron, arch: process.arch, userData: app.getPath('userData'), sessionData: app.getPath('sessionData'), ...validation}));
     }
     process.exitCode = exitCode;
     app.quit();

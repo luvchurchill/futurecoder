@@ -9,7 +9,8 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    # Python 3.12.1 has no setup-python binary for Ubuntu 26.04.
+    runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v6
     - name: Set up Python
